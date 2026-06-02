@@ -241,7 +241,7 @@ else:
         peso_kg = total_geral_peso / 1000
         
         if peso_kg <= 1.0:
-            preco_por_kg = 100
+            preco_por_kg = 102
             faixa_nome = "Até 1kg (Padrão)"
         elif peso_kg <= 2.0:
             preco_por_kg = 96
