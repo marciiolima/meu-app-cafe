@@ -33,6 +33,7 @@ if "cardapio" not in st.session_state:
         "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
     }
 
+
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
 
@@ -46,7 +47,7 @@ is_admin = (senha_digitada == SENHA_ADMIN)
 if is_admin:
     st.sidebar.success("Modo Admin Ativo")
     st.title("🛠️ Painel de Controle Administrativo")
-    st.write("Gerencie a disponibilidade do menu e extraia relatórios de produção.")
+    st.write("Gerencie a disponibilidade do menu e extraia relatórios consolidados de embalagem.")
     
     st.subheader("📋 Controle de Disponibilidade do Cardápio")
     for sabor, dados in st.session_state.cardapio.items():
@@ -57,58 +58,59 @@ if is_admin:
         
     st.markdown("---")
     
-    st.subheader("📊 Exportar Dados de Produção")
+    st.subheader("📊 Relatório Consolidado para Envase (PCP)")
     
-    # Puxa os dados reais do Supabase (Ajuste para "Pedidos" se sua tabela tiver P maiúsculo)
     resposta = supabase.table("pedidos").select("*").order("created_at", desc=True).execute()
     pedidos_banco = resposta.data
 
     if not pedidos_banco:
         st.info("Nenhum pedido no banco de dados para gerar relatório.")
     else:
-        # Processamento dos dados para agrupar por Tipo (Moagem) e Sabor
         lista_itens_completos = []
         for ped in pedidos_banco:
             for item in ped["column_itens"]:
+                # Compatibilidade: lê o tamanho antigo em gramas se não houver a chave nova estruturada
+                peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
+                quantidade = item.get("quantidade", 1)
+                
                 lista_itens_completos.append({
                     "Sabor": item["cafe"],
                     "Tipo (Moagem)": item["moagem"],
-                    "Volume (g)": item["peso"]
+                    "Embalagem": f"{peso_unitario}g",
+                    "Qtd de Pacotes": quantidade
                 })
         
-        # Cria um DataFrame do Pandas para agrupar as informações
         df = pd.DataFrame(lista_itens_completos)
         
-        # Agrupa por Sabor e Moagem, somando o volume total de cada um
-        df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)"]).sum().reset_index()
+        # Agrupa somando estritamente a quantidade de pacotes físicos necessários
+        df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
         
-        # Mostra uma prévia da tabela na tela do admin
         st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
         
-        # Transforma o DataFrame em um arquivo CSV codificado corretamente para o Excel brasileiro
         csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
         
-        # Botão físico de download
         st.download_button(
-            label="📥 Baixar Planilha de Produção (CSV)",
+            label="📥 Baixar Ordem de Envase e Produção (CSV)",
             data=csv_data,
-            file_name="relatorio_producao_cafe.csv",
+            file_name="ordem_envase_cafe.csv",
             mime="text/csv",
             use_container_width=True,
             type="primary"
         )
         
     st.markdown("---")
-    st.subheader("📦 Histórico de Pedidos Gravados")
+    st.subheader("📦 Histórico Detalhado de Pedidos")
     if pedidos_banco:
         for ped in pedidos_banco:
             data_formatada = ped["created_at"][:16].replace("T", " ")
             with st.expander(f"Pedido de {ped['column_nome']} ({data_formatada})"):
                 st.write(f"**Cliente:** {ped['column_nome']}")
                 st.write(f"**Contato:** {ped['column_telefone']}")
-                st.write("**Itens encomendados:**")
+                st.write("**Itens:**")
                 for item in ped["column_itens"]:
-                    st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
+                    peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
+                    qtd = item.get("quantidade", 1)
+                    st.write(f"• {qtd}x Pacote de {peso_unitario}g — {item['cafe']} ({item['moagem']})")
                     
     if st.sidebar.button("Sair do Modo Admin"):
         st.session_state.senha_admin_input = ""
@@ -145,11 +147,23 @@ else:
             )
 
         tipo_moagem = st.radio("Como prefere este café?", ["Grão", "Moído"], horizontal=True)
-        peso = st.number_input("Volume deste item (g):", min_value=250, max_value=5000, value=250, step=250)
+        
+        # Interface de controle exato de embalagem e unidades
+        col1, col2 = st.columns(2)
+        with col1:
+            tamanho_embalagem = st.selectbox("Tamanho da embalagem:", [250, 500], format_func=lambda x: f"Pacote de {x}g")
+        with col2:
+            quantidade_pacotes = st.number_input("Quantidade de pacotes:", min_value=1, max_value=50, value=1, step=1)
 
         if st.button("🛒 Adicionar ao Carrinho", use_container_width=True):
-            st.session_state.carrinho.append({"cafe": cafe_escolhido, "moagem": tipo_moagem, "peso": peso})
-            st.toast(f"✅ {cafe_escolhido} adicionado!")
+            st.session_state.carrinho.append({
+                "cafe": cafe_escolhido, 
+                "moagem": tipo_moagem, 
+                "tamanho_embalagem": tamanho_embalagem,
+                "quantidade": quantidade_pacotes,
+                "peso": tamanho_embalagem * quantidade_pacotes  # Mantém para compatibilidade retrospectiva
+            })
+            st.toast(f"✅ {quantidade_pacotes}x Pacote({tamanho_embalagem}g) de {cafe_escolhido} adicionado!")
 
         if st.session_state.carrinho:
             if st.button("🗑️ Limpar Carrinho", type="secondary"):
@@ -161,14 +175,15 @@ else:
 
         if not st.session_state.carrinho:
             st.info("Seu carrinho está vazio.")
-            peso_total = 0
         else:
-            peso_total = 0
+            total_geral_peso = 0
             for i, item in enumerate(st.session_state.carrinho, 1):
-                st.markdown(f"🔹 **Item {i}:** {item['cafe']} ({item['moagem']}) — {item['peso']}g")
-                peso_total += item["peso"]
+                tamanho = item.get("tamanho_embalagem", 250)
+                qtd = item.get("quantidade", 1)
+                st.markdown(f"🔹 **Item {i}:** {qtd}x pacote(s) de {tamanho}g — {item['cafe']} ({item['moagem']})")
+                total_geral_peso += (tamanho * qtd)
             
-            st.info(f"⚖️ **RESUMO:** \n📦 **Volume Total:** {peso_total}g ({peso_total // 250}x pacotes de 250g)")
+            st.info(f"⚖️ **RESUMO DE LOGÍSTICA:** \n📦 **Volume Bruto de Café:** {total_geral_peso}g ({total_geral_peso / 1000:.2f} kg)")
 
         st.markdown("---")
         st.subheader("📋 Dados para Finalização")
