@@ -1,5 +1,6 @@
 import streamlit as st
 import re
+import pandas as pd
 from supabase import create_client, Client
 
 # 1. CONFIGURAÇÃO DA PÁGINA E CONEXÃO COM SUPABASE
@@ -32,7 +33,6 @@ if "cardapio" not in st.session_state:
         "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
     }
 
-
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
 
@@ -46,7 +46,7 @@ is_admin = (senha_digitada == SENHA_ADMIN)
 if is_admin:
     st.sidebar.success("Modo Admin Ativo")
     st.title("🛠️ Painel de Controle Administrativo")
-    st.write("Gerencie a disponibilidade do menu e visualize os pedidos reais salvos na nuvem.")
+    st.write("Gerencie a disponibilidade do menu e extraia relatórios de produção.")
     
     st.subheader("📋 Controle de Disponibilidade do Cardápio")
     for sabor, dados in st.session_state.cardapio.items():
@@ -57,15 +57,50 @@ if is_admin:
         
     st.markdown("---")
     
-    st.subheader("📦 Histórico de Pedidos Gravados")
+    st.subheader("📊 Exportar Dados de Produção")
     
-    # Se sua tabela no supabase começar com P maiúsculo, mude aqui para "Pedidos"
+    # Puxa os dados reais do Supabase (Ajuste para "Pedidos" se sua tabela tiver P maiúsculo)
     resposta = supabase.table("pedidos").select("*").order("created_at", desc=True).execute()
     pedidos_banco = resposta.data
 
     if not pedidos_banco:
-        st.info("Nenhum pedido recebido no banco de dados ainda.")
+        st.info("Nenhum pedido no banco de dados para gerar relatório.")
     else:
+        # Processamento dos dados para agrupar por Tipo (Moagem) e Sabor
+        lista_itens_completos = []
+        for ped in pedidos_banco:
+            for item in ped["column_itens"]:
+                lista_itens_completos.append({
+                    "Sabor": item["cafe"],
+                    "Tipo (Moagem)": item["moagem"],
+                    "Volume (g)": item["peso"]
+                })
+        
+        # Cria um DataFrame do Pandas para agrupar as informações
+        df = pd.DataFrame(lista_itens_completos)
+        
+        # Agrupa por Sabor e Moagem, somando o volume total de cada um
+        df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)"]).sum().reset_index()
+        
+        # Mostra uma prévia da tabela na tela do admin
+        st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
+        
+        # Transforma o DataFrame em um arquivo CSV codificado corretamente para o Excel brasileiro
+        csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
+        
+        # Botão físico de download
+        st.download_button(
+            label="📥 Baixar Planilha de Produção (CSV)",
+            data=csv_data,
+            file_name="relatorio_producao_cafe.csv",
+            mime="text/csv",
+            use_container_width=True,
+            type="primary"
+        )
+        
+    st.markdown("---")
+    st.subheader("📦 Histórico de Pedidos Gravados")
+    if pedidos_banco:
         for ped in pedidos_banco:
             data_formatada = ped["created_at"][:16].replace("T", " ")
             with st.expander(f"Pedido de {ped['column_nome']} ({data_formatada})"):
@@ -161,7 +196,6 @@ else:
             elif len(numeros_tel) != 11:
                 st.warning("⚠️ O telefone precisa ter exatamente 11 números.")
             else:
-                # DADOS MAPEADOS COM O PREFIXO "column_" DO SEU SUPABASE
                 dados_pedido = {
                     "column_nome": nome_valido,
                     "column_telefone": telefone_mascarado,
@@ -169,7 +203,6 @@ else:
                 }
                 
                 try:
-                    # Se sua tabela no Supabase começar com P maiúsculo, troque abaixo para .table("Pedidos")
                     supabase.table("pedidos").insert(dados_pedido).execute()
                     st.success(f"🎉 Perfeito! O pedido de {nome_valido} foi enviado e salvo permanentemente.")
                     st.session_state.carrinho = []
