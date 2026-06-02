@@ -95,6 +95,9 @@ if st.session_state.login_admin:
         lista_itens_completos = []
         for ped in pedidos_banco:
             for item in ped["column_itens"]:
+                # Pula e ignora a tag financeira na geração do relatório de produção
+                if "tag_financeira" in item:
+                    continue
                 peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
                 quantidade = item.get("quantidade", 1)
                 lista_itens_completos.append({
@@ -104,12 +107,15 @@ if st.session_state.login_admin:
                     "Qtd de Pacotes": quantidade
                 })
         
-        df = pd.DataFrame(lista_itens_completos)
-        df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
-        st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
-        
-        csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
-        st.download_button(label="📥 Baixar Ordem de Envase (CSV)", data=csv_data, file_name="ordem_envase.csv", mime="text/csv", use_container_width=True)
+        if lista_itens_completos:
+            df = pd.DataFrame(lista_itens_completos)
+            df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
+            st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
+            
+            csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
+            st.download_button(label="📥 Baixar Ordem de Envase (CSV)", data=csv_data, file_name="ordem_envase.csv", mime="text/csv", use_container_width=True)
+        else:
+            st.info("Nenhum pacote de café pendente nos pedidos atuais.")
         
     st.markdown("---")
     st.sidebar.button("Sair do Modo Admin", type="secondary", on_click=deslogar_admin, use_container_width=True)
@@ -218,7 +224,7 @@ else:
                     st.session_state.etapa_venda = "pagamento"
                     st.rerun()
 
-    # --- ETAPA 2: TELA DE PAGAMENTO (SIMPLIFICADA) ---
+    # --- ETAPA 2: TELA DE PAGAMENTO ---
     elif st.session_state.etapa_venda == "pagamento":
         st.title("💳 Fechamento do Pedido e Pagamento")
         st.write("Confira os valores e faça a transferência PIX para concluir seu pedido.")
@@ -261,10 +267,7 @@ else:
         st.markdown("---")
         
         st.subheader("🔑 Pagamento via PIX")
-        
-        # FOCO EXCLUSIVO NO VALOR TOTAL E CHAVE DE E-MAIL
         st.warning(f"🚨 **VALOR EXATO A TRANSFERIR:** R$ {valor_total:.2f}\n\n**CHAVE PIX (E-MAIL):** {CHAVE_PIX_EMAIL}")
-        
         st.info("Abra o aplicativo do seu banco, escolha transferir por chave PIX E-mail e digite o endereço acima.")
         
         st.markdown("---")
@@ -277,16 +280,22 @@ else:
                 
         with c2:
             if st.button("🔥 Confirmar e Finalizar Pedido", use_container_width=True, type="primary"):
+                
+                # Solução: Anexa as informações financeiras dentro do JSON da lista de itens
+                itens_com_metadados = list(st.session_state.carrinho)
+                itens_com_metadados.append({
+                    "tag_financeira": True,
+                    "valor_total_pedido": valor_total,
+                    "frete_incluso": frete,
+                    "peso_total_kg": peso_kg,
+                    "chave_utilizada": CHAVE_PIX_EMAIL
+                })
+                
+                # Monta os dados apenas com as colunas que REALMENTE existem no banco
                 dados_pedido = {
                     "column_nome": cliente["nome"],
                     "column_telefone": cliente["telefone"],
-                    "column_itens": list(st.session_state.carrinho),
-                    "metadata_financeiro": {
-                        "valor_total": valor_total,
-                        "peso_total_kg": peso_kg,
-                        "frete_aplicado": frete,
-                        "chave_recebimento": CHAVE_PIX_EMAIL
-                    }
+                    "column_itens": itens_com_metadados
                 }
                 
                 try:
