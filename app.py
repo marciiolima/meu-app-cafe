@@ -188,7 +188,7 @@ else:
                     preco_por_kg = 95
                 
                 subtotal = peso_kg * preco_por_kg
-                st.info(f"⚖️ **Resumo Atual:** {total_geral_peso}g ({peso_kg:.2f} kg) \n💵 **Preço da faixa:** R$ {preco_por_kg}/kg (Subtotal: R$ {subtotal:.2f})")
+                st.info(f"⚖️ Resumo Atual: {total_geral_peso}g ({peso_kg:.2f} kg) \n💵 Preço da faixa: R$ {preco_por_kg:.2f}/kg | Subtotal: R$ {subtotal:.2f}")
 
             st.markdown("---")
             st.subheader("📋 Dados de Contato e Envio")
@@ -223,7 +223,7 @@ else:
                     st.session_state.etapa_venda = "pagamento"
                     st.rerun()
 
-    # --- ETAPA 2: TELA DE PAGAMENTO ---
+    # --- ETAPA 2: TELA DE PAGAMENTO (CORRIGIDA) ---
     elif st.session_state.etapa_venda == "pagamento":
         st.title("💳 Fechamento do Pedido e Pagamento")
         st.write("Confira os valores e utilize o código PIX abaixo para concluir a compra.")
@@ -245,7 +245,7 @@ else:
             faixa_nome = "Mais de 2kg (Atacado)"
             
         valor_cafe = peso_kg * preco_por_kg
-        frete = 2.0
+        frete = 2.00
         valor_total = valor_cafe + frete
         
         col1, col2 = st.columns(2)
@@ -262,19 +262,24 @@ else:
             st.write(f"**Preço do quilo:** R$ {preco_por_kg:.2f}/kg")
             st.write(f"**Subtotal do Café:** R$ {valor_cafe:.2f}")
             st.write(f"**Taxa de Frete:** R$ {frete:.2f}")
-            st.markdown(f"## **Total: R$ {valor_total:.2f}**")
+            st.write(f"### **Valor Total: R$ {valor_total:.2f}**")
             
         st.markdown("---")
         
         st.subheader("🔑 Pagamento via PIX")
-        st.info(f"Realize o pagamento para a chave e-mail abaixo. As instruções detalhadas de cobrança também foram enviadas para **{cliente['email']}**.")
         
-        # Exibição visual limpa da Chave PIX oficial
-        st.markdown(f"**Chave PIX (E-mail):** `{CHAVE_PIX_EMAIL}`")
+        # VALOR E CHAVE TOTALMENTE EXPLÍCITOS E EM DESTAQUE SEM CARACTERES ESCONDIDOS
+        st.warning(f"🚨 **VALOR EXATO A TRANSFERIR:** R$ {valor_total:.2f}\n\n**CHAVE PIX (E-MAIL):** {CHAVE_PIX_EMAIL}")
         
-        # Código Copia e Cola estruturado com a nova chave e o valor correto
-        chave_pix_copia_cola = f"00020101021126530014br.gov.bcb.pix0121{CHAVE_PIX_EMAIL}5204000053039865405{valor_total:.2f}5802BR5912MARCIO_LIMA6009SUA_CIDADE62070503***6304"
+        st.info("Copie o código Copia e Cola abaixo para pagar no aplicativo do seu banco:")
+        
+        # Formata o valor limpando pontos para montar a string segura do pix copia e cola
+        valor_formatado_pix = f"{valor_total:.2f}"
+        chave_pix_copia_cola = f"00020101021126530014br.gov.bcb.pix0121{CHAVE_PIX_EMAIL}5204000053039865405{valor_formatado_pix}5802BR5912MARCIO_LIMA6009SUA_CIDADE62070503***6304"
+        
         st.code(chave_pix_copia_cola, language="text")
+        
+        st.caption(f"📧 *As instruções detalhadas de recebimento foram direcionadas para o e-mail: {cliente['email']}*")
         
         st.markdown("---")
         
