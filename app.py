@@ -2,107 +2,131 @@ import streamlit as st
 import re
 
 # 1. CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="Cafés Especiais", page_icon="☕", layout="centered")
+st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
 
-# Inicializa o carrinho de compras na memória da sessão, se ainda não existir
+# Inicializa o carrinho de compras na memória da sessão
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
 
-# 2. BANCO DE DADOS DO CARDÁPIO
+# 2. BANCO DE DADOS DO CARDÁPIO COM MAPA DE CORES HEXADECIMAIS
+# Cada café agora tem sua cor em formato HEX (background limpo e letras legíveis)
 cardapio_cafes = {
     "Bala de Mel": {
         "disponivel": True,
         "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA",
         "notas": "BALA DE MEL / MALTE / CHOCOLATE",
         "variedade": "MUNDO NOVO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#FFF0F5",  # Rosa Claro (LavenderBlush)
+        "cor_texto": "#8B0086"
     },
     "Caramelo Selvagem": {
         "disponivel": True,
         "perfil": "DOÇURA ALTA / ACIDEZ BAIXA / CORPO DENSO",
         "notas": "FLOR DE SAL / MALTE TOSTADO",
         "variedade": "BOURBON AMARELO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#FFFEE0",  # Amarelo Claro
+        "cor_texto": "#8B7300"
     },
     "Lote 86": {
         "disponivel": True,
         "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ BAIXA",
         "notas": "CREME DE AVELÃ",
         "variedade": "CATUAÍ VERMELHO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#FFEBEB",  # Vermelho Claro
+        "cor_texto": "#A80000"
     },
     "Salada": {
         "disponivel": True,
         "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ PRESENTE",
         "notas": "BAUNILHA / SALADA DE FRUTAS / FAVO DE MEL",
         "variedade": "MUNDO NOVO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#F5F5DC",  # Bege (Beige)
+        "cor_texto": "#5C5C40"
     },
     "BS Honey": {
         "disponivel": True,
         "perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO",
         "notas": "RAPADURA / LARANJA / CHOCOLATE",
         "variedade": "CATUCAÍ AMARELO",
-        "regiao": "MATAS / MG"
+        "regiao": "MATAS / MG",
+        "cor_fundo": "#F4E7E7",  # Bordô Claro
+        "cor_texto": "#800020"   # Bordô / Vinho
     },
     "Caparaó": {
         "disponivel": True,
         "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA",
         "notas": "CASTANHA DE CAJU / CHOCOLATE",
         "variedade": "CATUCAÍ VERMELHO",
-        "regiao": "CAPARAÓ / MG"
+        "regiao": "CAPARAÓ / MG",
+        "cor_fundo": "#FFECF5",  # Rosa-Choque Suave
+        "cor_texto": "#D10074"   # Rosa-Choque Intenso
     },
     "BS Natural": {
         "disponivel": True,
         "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA",
         "notas": "CASTANHA DE CAJU / CHOCOLATE",
         "variedade": "BOURBON AMARELO",
-        "regiao": "CAPARAÓ / MG"
+        "regiao": "CAPARAÓ / MG",
+        "cor_fundo": "#FFECF5",  
+        "cor_texto": "#D10074"
     },
     "Lote 87": {
         "disponivel": True,
         "perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA",
         "notas": "BAUNILHA / NOZES / LARANJA",
         "variedade": "CATUAÍ VERMELHO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#FDF9E2",  # Mostarda Suave
+        "cor_texto": "#A68000"   # Mostarda
     },
     "Santa Rita": {
         "disponivel": True,
         "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA",
         "notas": "PAVÊ DE AMEIXA",
         "variedade": "CATUCAÍ AMARELO",
-        "regiao": "SUL / MG"
+        "regiao": "SUL / MG",
+        "cor_fundo": "#E0FFFF",  # Azul-Turquesa Claro
+        "cor_texto": "#008B8B"   # Azul-Turquesa Escuro
     },
     "Arara": {
         "disponivel": True,
         "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE",
         "notas": "BALA DE MEL / MATE TOSTADO",
         "variedade": "ARARA",
-        "regiao": "MOGIANA / SP"
+        "regiao": "MOGIANA / SP",
+        "cor_fundo": "#E6F7F0",  # Esmeralda Claro
+        "cor_texto": "#00875A"   # Esmeralda
     }
 }
 
 cafes_disponiveis = [nome for nome, dados in cardapio_cafes.items() if dados["disponivel"]]
 
 # 3. INTERFACE PRINCIPAL
-st.title("☕ Central de Pedidos de Café")
+st.title("Peça seu Café")
 st.write("Monte seu carrinho de compras escolhendo os sabores abaixo.")
 st.markdown("---")
 
 # Menu de seleção do café atual
 cafe_escolhido = st.selectbox("Escolha o sabor para adicionar:", cafes_disponiveis)
 
+# Bloco de Destaque Sem Ícones e com Cores Atribuídas Dinamicamente
 if cafe_escolhido:
     perfil_atual = cardapio_cafes[cafe_escolhido]["perfil"]
     notas_atuais = cardapio_cafes[cafe_escolhido]["notas"]
     variedade_atual = cardapio_cafes[cafe_escolhido]["variedade"]
     regiao_atual = cardapio_cafes[cafe_escolhido]["regiao"]
+    cor_bg = cardapio_cafes[cafe_escolhido]["cor_fundo"]
+    cor_tx = cardapio_cafes[cafe_escolhido]["cor_texto"]
     
     st.markdown(
         f"""
-        <div style="background-color: #f9f9f9; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #eeeeee;">
+        <div style="background-color: {cor_bg}; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid {cor_tx}40;">
             <center>
-                <h1 style="font-size: 2.4rem; margin-bottom: 5px; color: #222222; font-weight: bold; letter-spacing: 1px;">✨ {cafe_escolhido.upper()} ✨</h1>
+                <h1 style="font-size: 2.4rem; margin-bottom: 5px; color: {cor_tx}; font-weight: bold; letter-spacing: 1px;">{cafe_escolhido.upper()}</h1>
                 <p style="font-size: 0.95rem; margin-top: 12px; color: #444444; font-weight: bold;">
                     PERFIL: {perfil_atual}
                 </p>
@@ -125,7 +149,7 @@ if cafe_escolhido:
 tipo_moagem = st.radio("Como prefere este café?", ["Grão", "Moído"], horizontal=True)
 peso = st.number_input("Volume deste item (g):", min_value=250, max_value=5000, value=250, step=250)
 
-# --- BOTÃO INTERMEDIÁRIO: ADICIONAR AO CARRINHO ---
+# BOTÃO INTERMEDIÁRIO: ADICIONAR AO CARRINHO
 if st.button("🛒 Adicionar ao Carrinho", use_container_width=True):
     item_pedido = {
         "cafe": cafe_escolhido,
@@ -153,16 +177,13 @@ else:
     texto_carrinho = ""
     peso_total = 0
     
-    # Varre a lista do carrinho para montar o resumo estruturado
     for i, item in enumerate(st.session_state.carrinho, 1):
         pacotes_item = item["peso"] // 250
         texto_carrinho += f"🔹 **Item {i}:** {item['cafe']} ({item['moagem']}) — {item['peso']}g ({pacotes_item}x pacotes)\n\n"
         peso_total += item["peso"]
     
-    # Exibe a lista de itens adicionados
     st.markdown(texto_carrinho)
     
-    # Exibe o grande resumo agrupado no rodapé do carrinho
     pacotes_totais = peso_total // 250
     st.info(f"⚖️ **RESUMO DO PEDIDO:** \n📦 **Volume Total Somado:** {peso_total}g   \n📦 **Total de Embalagens:** {pacotes_totais}x pacotes de 250g")
 
@@ -202,6 +223,3 @@ if st.button("🔥 Finalizar e Enviar Pedido", use_container_width=True, type="p
         st.warning("⚠️ Telefone inválido. Certifique-se de preencher o formato completo: (XX) 9XXXX-XXXX.")
     else:
         st.success(f"🎉 Perfeito, {nome_valido}! Seu pedido total de {peso_total}g ({peso_total // 250}x pacotes) foi registrado. Entraremos em contato no {telefone_mascarado}!")
-        
-        # Opcional: Limpa o carrinho após o sucesso do pedido
-        # st.session_state.carrinho = []
