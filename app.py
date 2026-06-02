@@ -94,13 +94,17 @@ if st.session_state.login_admin:
     else:
         lista_itens_completos = []
         for ped in pedidos_banco:
+            # Pega o nome do cliente armazenado na linha correspondente do banco
+            nome_cliente = ped.get("column_nome", "DESCONHECIDO")
+            
             for item in ped["column_itens"]:
-                # Pula e ignora a tag financeira na geração do relatório de produção
+                # Pula e ignora a tag financeira interna
                 if "tag_financeira" in item:
                     continue
                 peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
                 quantidade = item.get("quantidade", 1)
                 lista_itens_completos.append({
+                    "Cliente": nome_cliente,
                     "Sabor": item["cafe"],
                     "Tipo (Moagem)": item["moagem"],
                     "Embalagem": f"{peso_unitario}g",
@@ -109,7 +113,8 @@ if st.session_state.login_admin:
         
         if lista_itens_completos:
             df = pd.DataFrame(lista_itens_completos)
-            df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
+            # Agrupamos incluindo o Cliente para manter a rastreabilidade individual
+            df_agrupado = df.groupby(["Cliente", "Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
             st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
             
             csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
@@ -281,7 +286,6 @@ else:
         with c2:
             if st.button("🔥 Confirmar e Finalizar Pedido", use_container_width=True, type="primary"):
                 
-                # Solução: Anexa as informações financeiras dentro do JSON da lista de itens
                 itens_com_metadados = list(st.session_state.carrinho)
                 itens_com_metadados.append({
                     "tag_financeira": True,
@@ -291,7 +295,6 @@ else:
                     "chave_utilizada": CHAVE_PIX_EMAIL
                 })
                 
-                # Monta os dados apenas com as colunas que REALMENTE existem no banco
                 dados_pedido = {
                     "column_nome": cliente["nome"],
                     "column_telefone": cliente["telefone"],
