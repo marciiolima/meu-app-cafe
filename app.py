@@ -73,15 +73,16 @@ if st.session_state.login_admin:
         novos_status[sabor] = st.toggle(f"Disponível: {sabor}", value=status_inicial, key=f"toggle_{sabor}")
         
     if st.button("💾 Salvar Alterações do Cardápio", type="primary", use_container_width=True):
-        sucesso = True
-        for sabor, disponivel in novos_status.items():
-            try:
-                supabase.table("cardapio").upsert({"sabor": sabor, "disponivel": disponivel}, on_conflict="sabor").execute()
-            except:
-                sucesso = False
-        if sucesso:
+        try:
+            supabase.table("cardapio").delete().neq("sabor", "FORÇAR_DELETAR_TUDO_CONDIÇÃO").execute()
+            lista_updates = [{"sabor": sabor, "disponivel": disp} for sabor, disp in novos_status.items()]
+            supabase.table("cardapio").insert(lista_updates).execute()
+            
             st.success("🎉 Alterações salvas permanentemente no banco!")
             st.balloons()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao salvar disponibilidade no Supabase: {e}")
         
     st.markdown("---")
     st.subheader("📊 Relatório Consolidado para Envase (PCP)")
@@ -94,11 +95,9 @@ if st.session_state.login_admin:
     else:
         lista_itens_completos = []
         for ped in pedidos_banco:
-            # Pega o nome do cliente armazenado na linha correspondente do banco
             nome_cliente = ped.get("column_nome", "DESCONHECIDO")
             
             for item in ped["column_itens"]:
-                # Pula e ignora a tag financeira interna
                 if "tag_financeira" in item:
                     continue
                 peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
@@ -113,7 +112,6 @@ if st.session_state.login_admin:
         
         if lista_itens_completos:
             df = pd.DataFrame(lista_itens_completos)
-            # Agrupamos incluindo o Cliente para manter a rastreabilidade individual
             df_agrupado = df.groupby(["Cliente", "Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
             st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
             
@@ -191,8 +189,10 @@ else:
                     total_geral_peso += (tamanho * qtd)
                 
                 peso_kg = total_geral_peso / 1000
+                
+                # ALTERAÇÃO: Faixa padrão corrigida para R$ 102,00/kg
                 if peso_kg <= 1.0:
-                    preco_por_kg = 100
+                    preco_por_kg = 102
                 elif peso_kg <= 2.0:
                     preco_por_kg = 96
                 else:
@@ -240,6 +240,7 @@ else:
         total_geral_peso = sum(item["tamanho_embalagem"] * item["quantidade"] for item in st.session_state.carrinho)
         peso_kg = total_geral_peso / 1000
         
+        # ALTERAÇÃO: Ajustado também no fechamento financeiro do pedido
         if peso_kg <= 1.0:
             preco_por_kg = 102
             faixa_nome = "Até 1kg (Padrão)"
