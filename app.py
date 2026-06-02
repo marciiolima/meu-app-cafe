@@ -5,8 +5,8 @@ from supabase import create_client, Client
 # 1. CONFIGURAÇÃO DA PÁGINA E CONEXÃO COM SUPABASE
 st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
 
-SUPABASE_URL = st.secrets["https://izfngofdajcqbgygfgor.supabase.co"]
-SUPABASE_KEY = st.secrets["sb_publishable_U9mQkaThZTFq-vMPqenV0w_Cf2sYCRh"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 # Inicializa o cliente do banco de dados
 @st.cache_resource
