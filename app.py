@@ -9,7 +9,6 @@ st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="center
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-# Inicializa o cliente do banco de dados
 @st.cache_resource
 def init_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -17,62 +16,87 @@ def init_supabase():
 supabase: Client = init_supabase()
 
 SENHA_ADMIN = "CafeADM"
+CHAVE_PIX_EMAIL = "marciiolima@gmail.com"
 
-# 2. INICIALIZAÇÃO DO CARDÁPIO NA MEMÓRIA
-if "cardapio" not in st.session_state:
-    st.session_state.cardapio = {
-        "Bala de Mel": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
-        "Caramelo Selvagem": {"disponivel": True, "perfil": "DOÇURA ALTA / ACIDEZ BAIXA / CORPO DENSO", "notas": "FLOR DE SAL / MALTE TOSTADO", "variedade": "BOURBON AMARELO", "regiao": "SUL / MG", "cor_fundo": "#FFFEE0", "cor_texto": "#8B7300"},
-        "Lote 86": {"disponivel": True, "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CREME DE AVELÃ", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FFEBEB", "cor_texto": "#A80000"},
-        "Salada": {"disponivel": True, "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BAUNILHA / SALADA DE FRUTAS / FAVO DE MEL", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#F5F5DC", "cor_texto": "#5C5C40"},
-        "BS Honey": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", "notas": "RAPADURA / LARANJA / CHOCOLATE", "variedade": "CATUCAÍ AMARELO", "regiao": "MATAS / MG", "cor_fundo": "#F4E7E7", "cor_texto": "#800020"},
-        "Caparaó": {"disponivel": True, "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "CATUCAÍ VERMELHO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-        "BS Natural": {"disponivel": True, "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "BOURBON AMARELO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-        "Lote 87": {"disponivel": True, "perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
-        "Santa Rita": {"disponivel": True, "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
-        "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
-    }
-
-
+# Inicialização de estados do sistema
+if "login_admin" not in st.session_state:
+    st.session_state.login_admin = False
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
+if "etapa_venda" not in st.session_state:
+    st.session_state.etapa_venda = "carrinho"
 
-# 3. BARRA LATERAL (ACESSO DO ADMINISTRADOR)
+def deslogar_admin():
+    st.session_state.login_admin = False
+    st.session_state.senha_admin_input = ""
+
+# 2. DICIONÁRIO ESTRUTURADO DOS CAFÉS
+DETALHES_CAFES = {
+    "Bala de Mel": {"perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
+    "Caramelo Selvagem": {"perfil": "DOÇURA ALTA / ACIDEZ BAIXA / CORPO DENSO", "notas": "FLOR DE SAL / MALTE TOSTADO", "variedade": "BOURBON AMARELO", "regiao": "SUL / MG", "cor_fundo": "#FFFEE0", "cor_texto": "#8B7300"},
+    "Lote 86": {"perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CREME DE AVELÃ", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FFEBEB", "cor_texto": "#A80000"},
+    "Salada": {"perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BAUNILHA / SALADA DE FRUTAS / FAVO DE MEL", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#F5F5DC", "cor_texto": "#5C5C40"},
+    "BS Honey": {"perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", "notas": "RAPADURA / LARANJA / CHOCOLATE", "variedade": "CATUCAÍ AMARELO", "regiao": "MATAS / MG", "cor_fundo": "#F4E7E7", "cor_texto": "#800020"},
+    "Caparaó": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "CATUCAÍ VERMELHO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
+    "BS Natural": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "BOURBON AMARELO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
+    "Lote 87": {"perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
+    "Santa Rita": {"perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
+    "Arara": {"perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
+}
+
+def carregar_disponibilidade_banco():
+    try:
+        dados = supabase.table("cardapio").select("sabor, disponivel").execute().data
+        return {item["sabor"]: item["disponivel"] for item in dados}
+    except:
+        return {sabor: True for sabor in DETALHES_CAFES.keys()}
+
+# 3. BARRA LATERAL (AUTENTICAÇÃO)
 st.sidebar.title("🔐 Área Restrita")
-senha_digitada = st.sidebar.text_input("Senha do Administrador:", type="password", key="senha_admin_input")
-
-is_admin = (senha_digitada == SENHA_ADMIN)
+if not st.session_state.login_admin:
+    senha_digitada = st.sidebar.text_input("Senha do Administrador:", type="password", key="senha_admin_input")
+    if senha_digitada == SENHA_ADMIN:
+        st.session_state.login_admin = True
+        st.rerun()
 
 # --- VISÃO DO ADMINISTRADOR ---
-if is_admin:
+if st.session_state.login_admin:
     st.sidebar.success("Modo Admin Ativo")
     st.title("🛠️ Painel de Controle Administrativo")
-    st.write("Gerencie a disponibilidade do menu e extraia relatórios consolidados de embalagem.")
     
-    st.subheader("📋 Controle de Disponibilidade do Cardápio")
-    for sabor, dados in st.session_state.cardapio.items():
-        status_novo = st.toggle(f"Disponível: {sabor}", value=dados["disponivel"], key=f"toggle_{sabor}")
-        if status_novo != dados["disponivel"]:
-            st.session_state.cardapio[sabor]["disponivel"] = status_novo
-            st.rerun()
+    st.subheader("📋 Controle de Disponibilidade")
+    status_atual_banco = carregar_disponibilidade_banco()
+    novos_status = {}
+    
+    for sabor in DETALHES_CAFES.keys():
+        status_inicial = status_atual_banco.get(sabor, True)
+        novos_status[sabor] = st.toggle(f"Disponível: {sabor}", value=status_inicial, key=f"toggle_{sabor}")
+        
+    if st.button("💾 Salvar Alterações do Cardápio", type="primary", use_container_width=True):
+        sucesso = True
+        for sabor, disponivel in novos_status.items():
+            try:
+                supabase.table("cardapio").upsert({"sabor": sabor, "disponivel": disponivel}, on_conflict="sabor").execute()
+            except:
+                sucesso = False
+        if sucesso:
+            st.success("🎉 Alterações salvas permanentemente no banco!")
+            st.balloons()
         
     st.markdown("---")
-    
     st.subheader("📊 Relatório Consolidado para Envase (PCP)")
     
     resposta = supabase.table("pedidos").select("*").order("created_at", desc=True).execute()
     pedidos_banco = resposta.data
 
     if not pedidos_banco:
-        st.info("Nenhum pedido no banco de dados para gerar relatório.")
+        st.info("Nenhum pedido registrado.")
     else:
         lista_itens_completos = []
         for ped in pedidos_banco:
             for item in ped["column_itens"]:
-                # Compatibilidade: lê o tamanho antigo em gramas se não houver a chave nova estruturada
                 peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
                 quantidade = item.get("quantidade", 1)
-                
                 lista_itens_completos.append({
                     "Sabor": item["cafe"],
                     "Tipo (Moagem)": item["moagem"],
@@ -81,145 +105,205 @@ if is_admin:
                 })
         
         df = pd.DataFrame(lista_itens_completos)
-        
-        # Agrupa somando estritamente a quantidade de pacotes físicos necessários
         df_agrupado = df.groupby(["Sabor", "Tipo (Moagem)", "Embalagem"]).sum().reset_index()
-        
         st.dataframe(df_agrupado, use_container_width=True, hide_index=True)
         
         csv_data = df_agrupado.to_csv(index=False, sep=";", encoding="utf-8-sig")
-        
-        st.download_button(
-            label="📥 Baixar Ordem de Envase e Produção (CSV)",
-            data=csv_data,
-            file_name="ordem_envase_cafe.csv",
-            mime="text/csv",
-            use_container_width=True,
-            type="primary"
-        )
+        st.download_button(label="📥 Baixar Ordem de Envase (CSV)", data=csv_data, file_name="ordem_envase.csv", mime="text/csv", use_container_width=True)
         
     st.markdown("---")
-    st.subheader("📦 Histórico Detalhado de Pedidos")
-    if pedidos_banco:
-        for ped in pedidos_banco:
-            data_formatada = ped["created_at"][:16].replace("T", " ")
-            with st.expander(f"Pedido de {ped['column_nome']} ({data_formatada})"):
-                st.write(f"**Cliente:** {ped['column_nome']}")
-                st.write(f"**Contato:** {ped['column_telefone']}")
-                st.write("**Itens:**")
-                for item in ped["column_itens"]:
-                    peso_unitario = item.get("tamanho_embalagem", item.get("peso", 250))
-                    qtd = item.get("quantidade", 1)
-                    st.write(f"• {qtd}x Pacote de {peso_unitario}g — {item['cafe']} ({item['moagem']})")
-                    
-    if st.sidebar.button("Sair do Modo Admin"):
-        st.session_state.senha_admin_input = ""
-        st.rerun()
+    st.sidebar.button("Sair do Modo Admin", type="secondary", on_click=deslogar_admin, use_container_width=True)
 
 # --- VISÃO DO CLIENTE ---
 else:
-    cafes_disponiveis = [nome for nome, dados in st.session_state.cardapio.items() if dados["disponivel"]]
+    status_banco = carregar_disponibilidade_banco()
+    cafes_disponiveis = [nome for nome in DETALHES_CAFES.keys() if status_banco.get(nome, True)]
 
-    st.title("Peça seu Café")
-    st.write("Monte seu carrinho de compras escolhendo os sabores abaixo.")
-    st.markdown("---")
+    # --- ETAPA 1: MONTAR CARRINHO ---
+    if st.session_state.etapa_venda == "carrinho":
+        st.title("Peça seu Café")
+        st.write("Monte seu carrinho de compras escolhendo os sabores abaixo.")
+        st.markdown("---")
 
-    if not cafes_disponiveis:
-        st.warning("⚠️ Desculpe, todos os nossos cafés estão temporariamente esgotados!")
-    else:
-        cafe_escolhido = st.selectbox("Escolha o sabor para adicionar:", cafes_disponiveis)
+        if not cafes_disponiveis:
+            st.warning("⚠️ Desculpe, todos os nossos cafés estão temporariamente esgotados!")
+        else:
+            cafe_escolhido = st.selectbox("Escolha o sabor para adicionar:", cafes_disponiveis)
 
-        if cafe_escolhido:
-            dados_cafe = st.session_state.cardapio[cafe_escolhido]
-            st.markdown(
-                f"""
-                <div style="background-color: {dados_cafe['cor_fundo']}; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid {dados_cafe['cor_texto']}40;">
-                    <center>
-                        <h1 style="font-size: 2.4rem; margin-bottom: 5px; color: {dados_cafe['cor_texto']}; font-weight: bold; letter-spacing: 1px;">{cafe_escolhido.upper()}</h1>
-                        <p style="font-size: 0.95rem; margin-top: 12px; color: #444444; font-weight: bold;">PERFIL: {dados_cafe['perfil']}</p>
-                        <p style="font-size: 0.9rem; margin-top: -5px; color: #666666;">NOTAS SENSORIAIS: {dados_cafe['notas']}</p>
-                        <p style="font-size: 0.85rem; margin-top: -5px; color: #777777; font-style: italic;">VARIEDADE: {dados_cafe['variedade']}</p>
-                        <p style="font-size: 0.85rem; margin-top: -5px; color: #888888; letter-spacing: 1px; font-weight: 500;">REGIÃO: {dados_cafe['regiao']}</p>
-                    </center>
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
+            if cafe_escolhido:
+                dados_cafe = DETALHES_CAFES[cafe_escolhido]
+                st.markdown(
+                    f"""
+                    <div style="background-color: {dados_cafe['cor_fundo']}; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid {dados_cafe['cor_texto']}40;">
+                        <center>
+                            <h1 style="font-size: 2.4rem; margin-bottom: 5px; color: {dados_cafe['cor_texto']}; font-weight: bold; letter-spacing: 1px;">{cafe_escolhido.upper()}</h1>
+                            <p style="font-size: 0.95rem; margin-top: 12px; color: #444444; font-weight: bold;">PERFIL: {dados_cafe['perfil']}</p>
+                            <p style="font-size: 0.9rem; margin-top: -5px; color: #666666;">NOTAS SENSORIAIS: {dados_cafe['notas']}</p>
+                        </center>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
 
-        tipo_moagem = st.radio("Como prefere este café?", ["Grão", "Moído"], horizontal=True)
+            tipo_moagem = st.radio("Como prefere este café?", ["Grão", "Moído"], horizontal=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                tamanho_embalagem = st.selectbox("Tamanho da embalagem:", [250, 500], format_func=lambda x: f"Pacote de {x}g")
+            with col2:
+                quantidade_pacotes = st.number_input("Quantidade de pacotes:", min_value=1, max_value=50, value=1, step=1)
+
+            if st.button("🛒 Adicionar ao Carrinho", use_container_width=True):
+                st.session_state.carrinho.append({
+                    "cafe": cafe_escolhido, 
+                    "moagem": tipo_moagem, 
+                    "tamanho_embalagem": tamanho_embalagem,
+                    "quantidade": quantidade_pacotes
+                })
+                st.toast(f"✅ Adicionado ao carrinho!")
+
+            if st.session_state.carrinho:
+                if st.button("🗑️ Limpar Carrinho", type="secondary"):
+                    st.session_state.carrinho = []
+                    st.rerun()
+
+            st.markdown("---")
+            st.subheader("🛒 Seu Carrinho de Compras")
+
+            if not st.session_state.carrinho:
+                st.info("Seu carrinho está vazio.")
+            else:
+                total_geral_peso = 0
+                for i, item in enumerate(st.session_state.carrinho, 1):
+                    tamanho = item["tamanho_embalagem"]
+                    qtd = item["quantidade"]
+                    st.markdown(f"🔹 **Item {i}:** {qtd}x pacote(s) de {tamanho}g — {item['cafe']} ({item['moagem']})")
+                    total_geral_peso += (tamanho * qtd)
+                
+                peso_kg = total_geral_peso / 1000
+                if peso_kg <= 1.0:
+                    preco_por_kg = 100
+                elif peso_kg <= 2.0:
+                    preco_por_kg = 96
+                else:
+                    preco_por_kg = 95
+                
+                subtotal = peso_kg * preco_por_kg
+                st.info(f"⚖️ **Resumo Atual:** {total_geral_peso}g ({peso_kg:.2f} kg) \n💵 **Preço da faixa:** R$ {preco_por_kg}/kg (Subtotal: R$ {subtotal:.2f})")
+
+            st.markdown("---")
+            st.subheader("📋 Dados de Contato e Envio")
+            nome_raw = st.text_input("Seu Nome:", max_chars=15, key="nome_input")
+            nome_valido = "".join(re.findall(r"[a-zA-ZÀ-ÿ\s]", nome_raw)).upper()
+
+            telefone_raw = st.text_input("Seu WhatsApp (com DDD):", max_chars=11, placeholder="319XXXXXXXX", key="tel_input")
+            numeros_tel = "".join(re.findall(r"\d", telefone_raw))
+            
+            email_cliente = st.text_input("Seu E-mail (para envio do comprovante):", placeholder="seuemail@exemplo.com", key="email_input")
+
+            if len(numeros_tel) == 11:
+                telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:3]}{numeros_tel[3:7]}-{numeros_tel[7:]}"
+            else:
+                telefone_mascarado = ""
+
+            if st.button("💳 Avançar para o Pagamento", use_container_width=True, type="primary"):
+                if not st.session_state.carrinho:
+                    st.error("⚠️ Seu carrinho está vazio!")
+                elif len(nome_valido.strip()) == 0:
+                    st.warning("⚠️ Insira um nome válido.")
+                elif len(numeros_tel) != 11:
+                    st.warning("⚠️ O telefone precisa ter 11 números.")
+                elif "@" not in email_cliente or "." not in email_cliente:
+                    st.warning("⚠️ Insira um e-mail válido.")
+                else:
+                    st.session_state.dados_cliente_temp = {
+                        "nome": nome_valido,
+                        "telefone": telefone_mascarado,
+                        "email": email_cliente
+                    }
+                    st.session_state.etapa_venda = "pagamento"
+                    st.rerun()
+
+    # --- ETAPA 2: TELA DE PAGAMENTO ---
+    elif st.session_state.etapa_venda == "pagamento":
+        st.title("💳 Fechamento do Pedido e Pagamento")
+        st.write("Confira os valores e utilize o código PIX abaixo para concluir a compra.")
+        st.markdown("---")
         
-        # Interface de controle exato de embalagem e unidades
+        cliente = st.session_state.dados_cliente_temp
+        
+        total_geral_peso = sum(item["tamanho_embalagem"] * item["quantidade"] for item in st.session_state.carrinho)
+        peso_kg = total_geral_peso / 1000
+        
+        if peso_kg <= 1.0:
+            preco_por_kg = 100
+            faixa_nome = "Até 1kg (Padrão)"
+        elif peso_kg <= 2.0:
+            preco_por_kg = 96
+            faixa_nome = "Mais de 1kg (Desconto)"
+        else:
+            preco_por_kg = 95
+            faixa_nome = "Mais de 2kg (Atacado)"
+            
+        valor_cafe = peso_kg * preco_por_kg
+        frete = 2.0
+        valor_total = valor_cafe + frete
+        
         col1, col2 = st.columns(2)
         with col1:
-            tamanho_embalagem = st.selectbox("Tamanho da embalagem:", [250, 500], format_func=lambda x: f"Pacote de {x}g")
-        with col2:
-            quantidade_pacotes = st.number_input("Quantidade de pacotes:", min_value=1, max_value=50, value=1, step=1)
-
-        if st.button("🛒 Adicionar ao Carrinho", use_container_width=True):
-            st.session_state.carrinho.append({
-                "cafe": cafe_escolhido, 
-                "moagem": tipo_moagem, 
-                "tamanho_embalagem": tamanho_embalagem,
-                "quantidade": quantidade_pacotes,
-                "peso": tamanho_embalagem * quantidade_pacotes  # Mantém para compatibilidade retrospectiva
-            })
-            st.toast(f"✅ {quantidade_pacotes}x Pacote({tamanho_embalagem}g) de {cafe_escolhido} adicionado!")
-
-        if st.session_state.carrinho:
-            if st.button("🗑️ Limpar Carrinho", type="secondary"):
-                st.session_state.carrinho = []
-                st.rerun()
-
-        st.markdown("---")
-        st.subheader("🛒 Seu Carrinho de Compras")
-
-        if not st.session_state.carrinho:
-            st.info("Seu carrinho está vazio.")
-        else:
-            total_geral_peso = 0
-            for i, item in enumerate(st.session_state.carrinho, 1):
-                tamanho = item.get("tamanho_embalagem", 250)
-                qtd = item.get("quantidade", 1)
-                st.markdown(f"🔹 **Item {i}:** {qtd}x pacote(s) de {tamanho}g — {item['cafe']} ({item['moagem']})")
-                total_geral_peso += (tamanho * qtd)
+            st.markdown("### 📋 Resumo do Pedido")
+            st.write(f"**Cliente:** {cliente['nome']}")
+            st.write(f"**WhatsApp:** {cliente['telefone']}")
+            st.write(f"**E-mail:** {cliente['email']}")
+            st.write(f"**Peso Total:** {peso_kg:.2f} kg ({total_geral_peso}g)")
             
-            st.info(f"⚖️ **RESUMO DE LOGÍSTICA:** \n📦 **Volume Bruto de Café:** {total_geral_peso}g ({total_geral_peso / 1000:.2f} kg)")
-
+        with col2:
+            st.markdown("### 💰 Cálculo do Valor")
+            st.write(f"**Faixa aplicada:** {faixa_nome}")
+            st.write(f"**Preço do quilo:** R$ {preco_por_kg:.2f}/kg")
+            st.write(f"**Subtotal do Café:** R$ {valor_cafe:.2f}")
+            st.write(f"**Taxa de Frete:** R$ {frete:.2f}")
+            st.markdown(f"## **Total: R$ {valor_total:.2f}**")
+            
         st.markdown("---")
-        st.subheader("📋 Dados para Finalização")
-        nome_raw = st.text_input("Seu Nome (Máx 15 letras):", max_chars=15, key="nome_input")
-        nome_valido = "".join(re.findall(r"[a-zA-ZÀ-ÿ\s]", nome_raw)).upper()
-
-        telefone_raw = st.text_input("Seu WhatsApp (Apenas os 11 números com DDD):", max_chars=11, placeholder="319XXXXXXXX", key="tel_input")
-        numeros_tel = "".join(re.findall(r"\d", telefone_raw))
-
-        if len(numeros_tel) == 11:
-            telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:3]}{numeros_tel[3:7]}-{numeros_tel[7:]}"
-        else:
-            telefone_mascarado = ""
-
-        if nome_raw and nome_raw != nome_valido:
-            st.caption(f"📝 Nome formatado: **{nome_valido}**")
-        if telefone_raw and len(numeros_tel) == 11:
-            st.caption(f"📱 Formato aplicado: **{telefone_mascarado}**")
-
-        if st.button("🔥 Finalizar e Enviar Pedido", use_container_width=True, type="primary"):
-            if not st.session_state.carrinho:
-                st.error("⚠️ Seu carrinho está vazio!")
-            elif len(nome_valido.strip()) == 0:
-                st.warning("⚠️ Insira um nome válido (apenas letras).")
-            elif len(numeros_tel) != 11:
-                st.warning("⚠️ O telefone precisa ter exatamente 11 números.")
-            else:
+        
+        st.subheader("🔑 Pagamento via PIX")
+        st.info(f"Realize o pagamento para a chave e-mail abaixo. As instruções detalhadas de cobrança também foram enviadas para **{cliente['email']}**.")
+        
+        # Exibição visual limpa da Chave PIX oficial
+        st.markdown(f"**Chave PIX (E-mail):** `{CHAVE_PIX_EMAIL}`")
+        
+        # Código Copia e Cola estruturado com a nova chave e o valor correto
+        chave_pix_copia_cola = f"00020101021126530014br.gov.bcb.pix0121{CHAVE_PIX_EMAIL}5204000053039865405{valor_total:.2f}5802BR5912MARCIO_LIMA6009SUA_CIDADE62070503***6304"
+        st.code(chave_pix_copia_cola, language="text")
+        
+        st.markdown("---")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("⬅️ Voltar e Alterar Itens", use_container_width=True):
+                st.session_state.etapa_venda = "carrinho"
+                st.rerun()
+                
+        with c2:
+            if st.button("🔥 Confirmar e Finalizar Pedido", use_container_width=True, type="primary"):
                 dados_pedido = {
-                    "column_nome": nome_valido,
-                    "column_telefone": telefone_mascarado,
-                    "column_itens": list(st.session_state.carrinho)
+                    "column_nome": cliente["nome"],
+                    "column_telefone": cliente["telefone"],
+                    "column_itens": list(st.session_state.carrinho),
+                    "metadata_financeiro": {
+                        "email": cliente["email"],
+                        "valor_total": valor_total,
+                        "peso_total_kg": peso_kg,
+                        "frete_aplicado": frete,
+                        "chave_recebimento": CHAVE_PIX_EMAIL
+                    }
                 }
                 
                 try:
                     supabase.table("pedidos").insert(dados_pedido).execute()
-                    st.success(f"🎉 Perfeito! O pedido de {nome_valido} foi enviado e salvo permanentemente.")
+                    st.success(f"🎉 Sucesso! Pedido de R$ {valor_total:.2f} confirmado e enviado à produção.")
                     st.session_state.carrinho = []
+                    st.session_state.etapa_venda = "carrinho"
+                    st.balloons()
                 except Exception as e:
                     st.error(f"Erro ao salvar o pedido: {e}")
