@@ -1,13 +1,23 @@
 import streamlit as st
 import re
+from supabase import create_client, Client
 
-# 1. CONFIGURAÇÃO DA PÁGINA
+# 1. CONFIGURAÇÃO DA PÁGINA E CONEXÃO COM SUPABASE
 st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
 
-# Definição da senha do Painel Administrativo
+SUPABASE_URL = st.secrets["https://izfngofdajcqbgygfgor.supabase.co"]
+SUPABASE_KEY = st.secrets["sb_publishable_U9mQkaThZTFq-vMPqenV0w_Cf2sYCRh"]
+
+# Inicializa o cliente do banco de dados
+@st.cache_resource
+def init_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase: Client = init_supabase()
+
 SENHA_ADMIN = "CafeADM"
 
-# 2. INICIALIZAÇÃO DO BANCO DE DADOS NA MEMÓRIA DA SESSÃO
+# 2. INICIALIZAÇÃO DO CARDÁPIO NA MEMÓRIA (O estoque/disponibilidade fica aqui)
 if "cardapio" not in st.session_state:
     st.session_state.cardapio = {
         "Bala de Mel": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
@@ -21,10 +31,7 @@ if "cardapio" not in st.session_state:
         "Santa Rita": {"disponivel": True, "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
         "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
     }
-
-
-if "historico_pedidos" not in st.session_state:
-    st.session_state.historico_pedidos = []
+}
 
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
@@ -39,7 +46,7 @@ is_admin = (senha_digitada == SENHA_ADMIN)
 if is_admin:
     st.sidebar.success("Modo Admin Ativo")
     st.title("🛠️ Painel de Controle Administrativo")
-    st.write("Gerencie a disponibilidade do menu e visualize os pedidos.")
+    st.write("Gerencie a disponibilidade do menu e visualize os pedidos reais salvos na nuvem.")
     
     st.subheader("📋 Controle de Disponibilidade do Cardápio")
     for sabor, dados in st.session_state.cardapio.items():
@@ -50,12 +57,18 @@ if is_admin:
         
     st.markdown("---")
     
-    st.subheader("📦 Histórico de Pedidos")
-    if not st.session_state.historico_pedidos:
-        st.info("Nenhum pedido recebido ainda.")
+    st.subheader("📦 Histórico de Pedidos Gravados")
+    # Puxa os dados em tempo real do Supabase
+    resposta = supabase.table("pedidos").select("*").order("created_at", descending=True).execute()
+    pedidos_banco = resposta.data
+
+    if not pedidos_banco:
+        st.info("Nenhum pedido recebido no banco de dados ainda.")
     else:
-        for idx, ped in enumerate(st.session_state.historico_pedidos, 1):
-            with st.expander(f"Pedido #{idx} - {ped['nome']}"):
+        for ped in pedidos_banco:
+            # Formata a data para exibição básica
+            data_formatada = ped["created_at"][:16].replace("T", " ")
+            with st.expander(f"Pedido de {ped['nome']} ({data_formatada})"):
                 st.write(f"**Cliente:** {ped['nome']}")
                 st.write(f"**Contato:** {ped['telefone']}")
                 st.write("**Itens encomendados:**")
@@ -124,30 +137,21 @@ else:
 
         st.markdown("---")
         st.subheader("📋 Dados para Finalização")
-        
-        # NOME: Força o limite de 15 caracteres no teclado e transforma tudo em CAIXA ALTA (.upper())
         nome_raw = st.text_input("Seu Nome (Máx 15 letras):", max_chars=15, key="nome_input")
         nome_valido = "".join(re.findall(r"[a-zA-ZÀ-ÿ\s]", nome_raw)).upper()
 
-        # TELEFONE: Força o limite estrito de 11 dígitos numéricos
         telefone_raw = st.text_input("Seu WhatsApp (Apenas os 11 números com DDD):", max_chars=11, placeholder="319XXXXXXXX", key="tel_input")
         numeros_tel = "".join(re.findall(r"\d", telefone_raw))
 
-        # Aplica a máscara visual rigidamente se o cara digitou os 11 números certos
         if len(numeros_tel) == 11:
             telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:3]}{numeros_tel[3:7]}-{numeros_tel[7:]}"
         else:
             telefone_mascarado = ""
 
-        # Feedbacks visuais em tempo real abaixo das caixas
         if nome_raw and nome_raw != nome_valido:
             st.caption(f"📝 Nome formatado: **{nome_valido}**")
-            
-        if telefone_raw:
-            if len(numeros_tel) != len(telefone_raw):
-                st.caption("⚠️ **Apenas números são aceitos neste campo!**")
-            elif len(numeros_tel) == 11:
-                st.caption(f"📱 Formato aplicado: **{telefone_mascarado}**")
+        if telefone_raw and len(numeros_tel) == 11:
+            st.caption(f"📱 Formato aplicado: **{telefone_mascarado}**")
 
         if st.button("🔥 Finalizar e Enviar Pedido", use_container_width=True, type="primary"):
             if not st.session_state.carrinho:
@@ -155,13 +159,18 @@ else:
             elif len(nome_valido.strip()) == 0:
                 st.warning("⚠️ Insira um nome válido (apenas letras).")
             elif len(numeros_tel) != 11:
-                st.warning("⚠️ O telefone precisa ter exatamente 11 números (DDD + 9 dígitos).")
+                st.warning("⚠️ O telefone precisa ter exatamente 11 números.")
             else:
-                novo_pedido = {
+                # SALVA DIRETO NO BANCO DE DADOS DO SUPABASE
+                dados_pedido = {
                     "nome": nome_valido,
                     "telefone": telefone_mascarado,
                     "itens": list(st.session_state.carrinho)
                 }
-                st.session_state.historico_pedidos.append(novo_pedido)
-                st.success(f"🎉 Perfeito! O pedido de {nome_valido} foi registrado com o contato {telefone_mascarado}.")
-                st.session_state.carrinho = []
+                
+                try:
+                    supabase.table("pedidos").insert(dados_pedido).execute()
+                    st.success(f"🎉 Perfeito! O pedido de {nome_valido} foi enviado e salvo permanentemente.")
+                    st.session_state.carrinho = []
+                except Exception as e:
+                    st.error(f"Erro ao salvar o pedido: {e}")
