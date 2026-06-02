@@ -4,11 +4,10 @@ import re
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
 
-# Definir a senha do Painel Administrativo
-SENHA_ADMIN = "cafe123"
+# Definição da nova senha do Painel Administrativo
+SENHA_ADMIN = "CafeADM"
 
 # 2. INICIALIZAÇÃO DO BANCO DE DADOS NA MEMÓRIA DA SESSÃO
-# Criamos o cardápio e o histórico de pedidos dentro da memória do app
 if "cardapio" not in st.session_state:
     st.session_state.cardapio = {
         "Bala de Mel": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
@@ -22,6 +21,7 @@ if "cardapio" not in st.session_state:
         "Santa Rita": {"disponivel": True, "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
         "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
     }
+}
 
 if "historico_pedidos" not in st.session_state:
     st.session_state.historico_pedidos = []
@@ -33,25 +33,25 @@ if "carrinho" not in st.session_state:
 st.sidebar.title("🔐 Área Restrita")
 senha_digitada = st.sidebar.text_input("Senha do Administrador:", type="password")
 
-# Verifica se o administrador está logado
 is_admin = (senha_digitada == SENHA_ADMIN)
 
 # --- VISÃO DO ADMINISTRADOR ---
 if is_admin:
-    st.sidebar.success("Modo Administrador Ativo")
+    st.sidebar.success("Modo Admin Ativo")
     st.title("🛠️ Painel de Controle Administrativo")
-    st.write("Gerencie os sabores disponíveis e veja os pedidos recebidos.")
+    st.write("Gerencie a disponibilidade do menu e visualize os pedidos.")
     
-    # Seção 1: Ligar/Desligar Sabores
     st.subheader("📋 Controle de Disponibilidade do Cardápio")
     for sabor, dados in st.session_state.cardapio.items():
-        # Cria um botão liga/desliga para cada sabor
-        status_atual = st.toggle(f"Disponível: {sabor}", value=dados["disponivel"], key=f"toggle_{sabor}")
-        st.session_state.cardapio[sabor]["disponivel"] = status_atual
+        # Captura a mudança do toggle
+        status_novo = st.toggle(f"Disponível: {sabor}", value=dados["disponivel"], key=f"toggle_{sabor}")
+        # Se mudou o status na tela, atualiza o banco e força o reload
+        if status_novo != dados["disponivel"]:
+            st.session_state.cardapio[sabor]["disponivel"] = status_novo
+            st.rerun()
         
     st.markdown("---")
     
-    # Seção 2: Visualizar Pedidos Recebidos
     st.subheader("📦 Histórico de Pedidos")
     if not st.session_state.historico_pedidos:
         st.info("Nenhum pedido recebido ainda.")
@@ -67,9 +67,8 @@ if is_admin:
     if st.sidebar.button("Sair do Modo Admin"):
         st.rerun()
 
-# --- VISÃO DO CLIENTE (SÓ APARECE SE NÃO FOR ADMIN) ---
+# --- VISÃO DO CLIENTE ---
 else:
-    # Filtra os cafés usando o estado atualizado do cardápio
     cafes_disponiveis = [nome for nome, dados in st.session_state.cardapio.items() if dados["disponivel"]]
 
     st.title("Peça seu Café")
@@ -77,7 +76,7 @@ else:
     st.markdown("---")
 
     if not cafes_disponiveis:
-        st.warning("Desculpe, todos os nossos cafés estão temporariamente esgotados!")
+        st.warning("⚠️ Desculpe, todos os nossos cafés estão temporariamente esgotados!")
     else:
         cafe_escolhido = st.selectbox("Escolha o sabor para adicionar:", cafes_disponiveis)
 
@@ -132,7 +131,6 @@ else:
         telefone_raw = st.text_input("Seu WhatsApp:", placeholder="(XX) 9XXXX-XXXX", key="tel_input")
         numeros_tel = "".join(re.findall(r"\d", telefone_raw))[:11]
 
-        # Tratamento da máscara visual
         telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:7]}-{numeros_tel[7:]}" if len(numeros_tel) == 11 else telefone_raw
 
         if st.button("🔥 Finalizar e Enviar Pedido", use_container_width=True, type="primary"):
@@ -143,7 +141,6 @@ else:
             elif len(numeros_tel) != 11:
                 st.warning("⚠️ Formato de telefone incorreto.")
             else:
-                # Salva o pedido permanentemente na lista de histórico do sistema
                 novo_pedido = {
                     "nome": nome_valido,
                     "telefone": telefone_mascarado,
@@ -151,4 +148,4 @@ else:
                 }
                 st.session_state.historico_pedidos.append(novo_pedido)
                 st.success(f"🎉 Perfeito, {nome_valido}! Seu pedido foi registrado.")
-                st.session_state.carrinho = [] # Limpa o carrinho do cliente
+                st.session_state.carrinho = []
