@@ -26,10 +26,6 @@ if "carrinho" not in st.session_state:
 if "etapa_venda" not in st.session_state:
     st.session_state.etapa_venda = "carrinho"
 
-def deslogar_admin():
-    st.session_state.login_admin = False
-    st.session_state.senha_admin_input = ""
-
 # 2. DICIONÁRIO ESTRUTURADO DOS CAFÉS
 DETALHES_CAFES = {
     "Bala de Mel": {"perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
@@ -39,17 +35,23 @@ DETALHES_CAFES = {
     "BS Honey": {"perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", "notas": "RAPADURA / LARANJA / CHOCOLATE", "variedade": "CATUCAÍ AMARELO", "regiao": "MATAS / MG", "cor_fundo": "#F4E7E7", "cor_texto": "#800020"},
     "Caparaó": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "CATUCAÍ VERMELHO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
     "BS Natural": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "BOURBON AMARELO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-    "Lote 87": {"perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
+    "Lote 87": {"perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERVELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
     "Santa Rita": {"perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
     "Arara": {"perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
 }
 
 def carregar_disponibilidade_banco():
     try:
-        dados = supabase.table("cardapio").select("sabor, disponivel").execute().data
-        return {item["sabor"]: item["disponivel"] for item in dados}
-    except:
+        # Busca usando os novos nomes de coluna criados
+        dados = supabase.table("cardapio").select("column_sabor, column_disponivel").execute().data
+        return {item["column_sabor"]: item["column_disponivel"] for item in dados}
+    except Exception as e:
+        # Se der erro ou a tabela estiver vazia, assume que todos estão disponíveis
         return {sabor: True for sabor in DETALHES_CAFES.keys()}
+
+def deslogar_admin():
+    st.session_state.login_admin = False
+    st.session_state.senha_admin_input = ""
 
 # 3. BARRA LATERAL (AUTENTICAÇÃO)
 st.sidebar.title("🔐 Área Restrita")
@@ -66,19 +68,22 @@ if st.session_state.login_admin:
     
     st.subheader("📋 Controle de Disponibilidade")
     status_atual_banco = carregar_disponibilidade_banco()
-    novos_status = {}
     
+    novos_status = {}
     for sabor in DETALHES_CAFES.keys():
         status_inicial = status_atual_banco.get(sabor, True)
         novos_status[sabor] = st.toggle(f"Disponível: {sabor}", value=status_inicial, key=f"toggle_{sabor}")
         
     if st.button("💾 Salvar Alterações do Cardápio", type="primary", use_container_width=True):
         try:
-            supabase.table("cardapio").delete().neq("sabor", "FORÇAR_DELETAR_TUDO_CONDIÇÃO").execute()
-            lista_updates = [{"sabor": sabor, "disponivel": disp} for sabor, disp in novos_status.items()]
-            supabase.table("cardapio").insert(lista_updates).execute()
+            # Upsert funciona perfeitamente agora que column_sabor é Primary Key
+            lista_updates = [
+                {"column_sabor": sabor, "column_disponivel": disp} 
+                for sabor, disp in novos_status.items()
+            ]
+            supabase.table("cardapio").upsert(lista_updates).execute()
             
-            st.success("🎉 Alterações salvas permanentemente no banco!")
+            st.success("🎉 Alterações gravadas permanentemente no Supabase!")
             st.balloons()
             st.rerun()
         except Exception as e:
@@ -190,7 +195,6 @@ else:
                 
                 peso_kg = total_geral_peso / 1000
                 
-                # ALTERAÇÃO: Faixa padrão corrigida para R$ 102,00/kg
                 if peso_kg <= 1.0:
                     preco_por_kg = 102
                 elif peso_kg <= 2.0:
@@ -240,7 +244,6 @@ else:
         total_geral_peso = sum(item["tamanho_embalagem"] * item["quantidade"] for item in st.session_state.carrinho)
         peso_kg = total_geral_peso / 1000
         
-        # ALTERAÇÃO: Ajustado também no fechamento financeiro do pedido
         if peso_kg <= 1.0:
             preco_por_kg = 102
             faixa_nome = "Até 1kg (Padrão)"
