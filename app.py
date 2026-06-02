@@ -35,18 +35,16 @@ DETALHES_CAFES = {
     "BS Honey": {"perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", "notas": "RAPADURA / LARANJA / CHOCOLATE", "variedade": "CATUCAÍ AMARELO", "regiao": "MATAS / MG", "cor_fundo": "#F4E7E7", "cor_texto": "#800020"},
     "Caparaó": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "CATUCAÍ VERMELHO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
     "BS Natural": {"perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "BOURBON AMARELO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-    "Lote 87": {"perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERVELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
+    "Lote 87": {"perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
     "Santa Rita": {"perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
     "Arara": {"perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
 }
 
 def carregar_disponibilidade_banco():
     try:
-        # Busca usando os novos nomes de coluna criados
         dados = supabase.table("cardapio").select("column_sabor, column_disponivel").execute().data
         return {item["column_sabor"]: item["column_disponivel"] for item in dados}
     except Exception as e:
-        # Se der erro ou a tabela estiver vazia, assume que todos estão disponíveis
         return {sabor: True for sabor in DETALHES_CAFES.keys()}
 
 def deslogar_admin():
@@ -76,7 +74,6 @@ if st.session_state.login_admin:
         
     if st.button("💾 Salvar Alterações do Cardápio", type="primary", use_container_width=True):
         try:
-            # Upsert funciona perfeitamente agora que column_sabor é Primary Key
             lista_updates = [
                 {"column_sabor": sabor, "column_disponivel": disp} 
                 for sabor, disp in novos_status.items()
@@ -146,13 +143,17 @@ else:
 
             if cafe_escolhido:
                 dados_cafe = DETALHES_CAFES[cafe_escolhido]
+                # CORREÇÃO AQUI: Adicionado a variedade e região de volta no card visual do cliente
                 st.markdown(
                     f"""
                     <div style="background-color: {dados_cafe['cor_fundo']}; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid {dados_cafe['cor_texto']}40;">
                         <center>
                             <h1 style="font-size: 2.4rem; margin-bottom: 5px; color: {dados_cafe['cor_texto']}; font-weight: bold; letter-spacing: 1px;">{cafe_escolhido.upper()}</h1>
-                            <p style="font-size: 0.95rem; margin-top: 12px; color: #444444; font-weight: bold;">PERFIL: {dados_cafe['perfil']}</p>
-                            <p style="font-size: 0.9rem; margin-top: -5px; color: #666666;">NOTAS SENSORIAIS: {dados_cafe['notas']}</p>
+                            <p style="font-size: 0.95rem; margin-top: 12px; color: #444444; font-weight: bold; margin-bottom: 4px;">PERFIL: {dados_cafe['perfil']}</p>
+                            <p style="font-size: 0.9rem; color: #555555; margin-bottom: 4px;">NOTAS SENSORIAIS: {dados_cafe['notas']}</p>
+                            <p style="font-size: 0.85rem; color: #666666; margin-bottom: 0px;">
+                                <b>VARIEDADE:</b> {dados_cafe['variedade']} &nbsp;|&nbsp; <b>REGIÃO:</b> {dados_cafe['regiao']}
+                            </p>
                         </center>
                     </div>
                     """, 
