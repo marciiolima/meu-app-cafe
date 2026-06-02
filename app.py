@@ -197,8 +197,6 @@ else:
 
             telefone_raw = st.text_input("Seu WhatsApp (com DDD):", max_chars=11, placeholder="319XXXXXXXX", key="tel_input")
             numeros_tel = "".join(re.findall(r"\d", telefone_raw))
-            
-            email_cliente = st.text_input("Seu E-mail (para envio do comprovante):", placeholder="seuemail@exemplo.com", key="email_input")
 
             if len(numeros_tel) == 11:
                 telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:3]}{numeros_tel[3:7]}-{numeros_tel[7:]}"
@@ -212,21 +210,18 @@ else:
                     st.warning("⚠️ Insira um nome válido.")
                 elif len(numeros_tel) != 11:
                     st.warning("⚠️ O telefone precisa ter 11 números.")
-                elif "@" not in email_cliente or "." not in email_cliente:
-                    st.warning("⚠️ Insira um e-mail válido.")
                 else:
                     st.session_state.dados_cliente_temp = {
                         "nome": nome_valido,
-                        "telefone": telefone_mascarado,
-                        "email": email_cliente
+                        "telefone": telefone_mascarado
                     }
                     st.session_state.etapa_venda = "pagamento"
                     st.rerun()
 
-    # --- ETAPA 2: TELA DE PAGAMENTO (CORRIGIDA) ---
+    # --- ETAPA 2: TELA DE PAGAMENTO (SIMPLIFICADA) ---
     elif st.session_state.etapa_venda == "pagamento":
         st.title("💳 Fechamento do Pedido e Pagamento")
-        st.write("Confira os valores e utilize o código PIX abaixo para concluir a compra.")
+        st.write("Confira os valores e faça a transferência PIX para concluir seu pedido.")
         st.markdown("---")
         
         cliente = st.session_state.dados_cliente_temp
@@ -253,7 +248,6 @@ else:
             st.markdown("### 📋 Resumo do Pedido")
             st.write(f"**Cliente:** {cliente['nome']}")
             st.write(f"**WhatsApp:** {cliente['telefone']}")
-            st.write(f"**E-mail:** {cliente['email']}")
             st.write(f"**Peso Total:** {peso_kg:.2f} kg ({total_geral_peso}g)")
             
         with col2:
@@ -268,18 +262,10 @@ else:
         
         st.subheader("🔑 Pagamento via PIX")
         
-        # VALOR E CHAVE TOTALMENTE EXPLÍCITOS E EM DESTAQUE SEM CARACTERES ESCONDIDOS
+        # FOCO EXCLUSIVO NO VALOR TOTAL E CHAVE DE E-MAIL
         st.warning(f"🚨 **VALOR EXATO A TRANSFERIR:** R$ {valor_total:.2f}\n\n**CHAVE PIX (E-MAIL):** {CHAVE_PIX_EMAIL}")
         
-        st.info("Copie o código Copia e Cola abaixo para pagar no aplicativo do seu banco:")
-        
-        # Formata o valor limpando pontos para montar a string segura do pix copia e cola
-        valor_formatado_pix = f"{valor_total:.2f}"
-        chave_pix_copia_cola = f"00020101021126530014br.gov.bcb.pix0121{CHAVE_PIX_EMAIL}5204000053039865405{valor_formatado_pix}5802BR5912MARCIO_LIMA6009SUA_CIDADE62070503***6304"
-        
-        st.code(chave_pix_copia_cola, language="text")
-        
-        st.caption(f"📧 *As instruções detalhadas de recebimento foram direcionadas para o e-mail: {cliente['email']}*")
+        st.info("Abra o aplicativo do seu banco, escolha transferir por chave PIX E-mail e digite o endereço acima.")
         
         st.markdown("---")
         
@@ -296,7 +282,6 @@ else:
                     "column_telefone": cliente["telefone"],
                     "column_itens": list(st.session_state.carrinho),
                     "metadata_financeiro": {
-                        "email": cliente["email"],
                         "valor_total": valor_total,
                         "peso_total_kg": peso_kg,
                         "frete_aplicado": frete,
