@@ -71,8 +71,8 @@ if is_admin:
                 st.write(f"**Cliente:** {ped['nome']}")
                 st.write(f"**Contato:** {ped['telefone']}")
                 st.write("**Itens encomendados:**")
-                for item in ped["itens"]:
-                    st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
+                for item in ped["column_itens"]:
+                st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
                     
     if st.sidebar.button("Sair do Modo Admin"):
         st.session_state.senha_admin_input = ""
@@ -161,10 +161,11 @@ else:
                 st.warning("⚠️ O telefone precisa ter exatamente 11 números.")
             else:
                 # SALVA DIRETO NO BANCO DE DADOS DO SUPABASE
+               # COMO DEVE FICAR:
                 dados_pedido = {
-                    "nome": nome_valido,
-                    "telefone": telefone_mascarado,
-                    "itens": list(st.session_state.carrinho)
+                "column_nome": nome_valido,
+                "column_telefone": telefone_mascarado,
+                "column_itens": list(st.session_state.carrinho)
                 }
                 
                 try:
