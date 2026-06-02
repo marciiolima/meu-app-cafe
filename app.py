@@ -4,6 +4,7 @@ from supabase import create_client, Client
 
 # 1. CONFIGURAÇÃO DA PÁGINA E CONEXÃO COM SUPABASE
 st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
+
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
@@ -16,7 +17,7 @@ supabase: Client = init_supabase()
 
 SENHA_ADMIN = "CafeADM"
 
-# 2. INICIALIZAÇÃO DO CARDÁPIO NA MEMÓRIA (O estoque/disponibilidade fica aqui)
+# 2. INICIALIZAÇÃO DO CARDÁPIO NA MEMÓRIA
 if "cardapio" not in st.session_state:
     st.session_state.cardapio = {
         "Bala de Mel": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
@@ -30,7 +31,7 @@ if "cardapio" not in st.session_state:
         "Santa Rita": {"disponivel": True, "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
         "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
     }
-
+}
 
 if "carrinho" not in st.session_state:
     st.session_state.carrinho = []
@@ -57,7 +58,8 @@ if is_admin:
     st.markdown("---")
     
     st.subheader("📦 Histórico de Pedidos Gravados")
-    # Puxa os dados em tempo real do Supabase
+    
+    # Se sua tabela no supabase começar com P maiúsculo, mude aqui para "Pedidos"
     resposta = supabase.table("pedidos").select("*").order("created_at", desc=True).execute()
     pedidos_banco = resposta.data
 
@@ -65,14 +67,13 @@ if is_admin:
         st.info("Nenhum pedido recebido no banco de dados ainda.")
     else:
         for ped in pedidos_banco:
-            # Formata a data para exibição básica
             data_formatada = ped["created_at"][:16].replace("T", " ")
-            with st.expander(f"Pedido de {ped['nome']} ({data_formatada})"):
-                st.write(f"**Cliente:** {ped['nome']}")
-                st.write(f"**Contato:** {ped['telefone']}")
+            with st.expander(f"Pedido de {ped['column_nome']} ({data_formatada})"):
+                st.write(f"**Cliente:** {ped['column_nome']}")
+                st.write(f"**Contato:** {ped['column_telefone']}")
                 st.write("**Itens encomendados:**")
                 for item in ped["column_itens"]:
-                st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
+                    st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
                     
     if st.sidebar.button("Sair do Modo Admin"):
         st.session_state.senha_admin_input = ""
@@ -160,15 +161,15 @@ else:
             elif len(numeros_tel) != 11:
                 st.warning("⚠️ O telefone precisa ter exatamente 11 números.")
             else:
-                # SALVA DIRETO NO BANCO DE DADOS DO SUPABASE
-               # COMO DEVE FICAR:
+                # DADOS MAPEADOS COM O PREFIXO "column_" DO SEU SUPABASE
                 dados_pedido = {
-                "column_nome": nome_valido,
-                "column_telefone": telefone_mascarado,
-                "column_itens": list(st.session_state.carrinho)
+                    "column_nome": nome_valido,
+                    "column_telefone": telefone_mascarado,
+                    "column_itens": list(st.session_state.carrinho)
                 }
                 
                 try:
+                    # Se sua tabela no Supabase começar com P maiúsculo, troque abaixo para .table("Pedidos")
                     supabase.table("pedidos").insert(dados_pedido).execute()
                     st.success(f"🎉 Perfeito! O pedido de {nome_valido} foi enviado e salvo permanentemente.")
                     st.session_state.carrinho = []
