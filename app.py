@@ -4,24 +4,103 @@ import re
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Peça seu Café", page_icon="☕", layout="centered")
 
-# Definição da nova senha do Painel Administrativo
+# Definição da senha do Painel Administrativo
 SENHA_ADMIN = "CafeADM"
 
 # 2. INICIALIZAÇÃO DO BANCO DE DADOS NA MEMÓRIA DA SESSÃO
 if "cardapio" not in st.session_state:
     st.session_state.cardapio = {
-        "Bala de Mel": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", "notas": "BALA DE MEL / MALTE / CHOCOLATE", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#FFF0F5", "cor_texto": "#8B0086"},
-        "Caramelo Selvagem": {"disponivel": True, "perfil": "DOÇURA ALTA / ACIDEZ BAIXA / CORPO DENSO", "notas": "FLOR DE SAL / MALTE TOSTADO", "variedade": "BOURBON AMARELO", "regiao": "SUL / MG", "cor_fundo": "#FFFEE0", "cor_texto": "#8B7300"},
-        "Lote 86": {"disponivel": True, "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CREME DE AVELÃ", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FFEBEB", "cor_texto": "#A80000"},
-        "Salada": {"disponivel": True, "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BAUNILHA / SALADA DE FRUTAS / FAVO DE MEL", "variedade": "MUNDO NOVO", "regiao": "SUL / MG", "cor_fundo": "#F5F5DC", "cor_texto": "#5C5C40"},
-        "BS Honey": {"disponivel": True, "perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", "notas": "RAPADURA / LARANJA / CHOCOLATE", "variedade": "CATUCAÍ AMARELO", "regiao": "MATAS / MG", "cor_fundo": "#F4E7E7", "cor_texto": "#800020"},
-        "Caparaó": {"disponivel": True, "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "CATUCAÍ VERMELHO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-        "BS Natural": {"disponivel": True, "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", "notas": "CASTANHA DE CAJU / CHOCOLATE", "variedade": "BOURBON AMARELO", "regiao": "CAPARAÓ / MG", "cor_fundo": "#FFECF5", "cor_texto": "#D10074"},
-        "Lote 87": {"disponivel": True, "perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "BAUNILHA / NOZES / LARANJA", "variedade": "CATUAÍ VERMELHO", "regiao": "SUL / MG", "cor_fundo": "#FDF9E2", "cor_texto": "#A68000"},
-        "Santa Rita": {"disponivel": True, "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", "notas": "PAVÊ DE AMEIXA", "variedade": "CATUCAÍ AMARELO", "regiao": "SUL / MG", "cor_fundo": "#E0FFFF", "cor_texto": "#008B8B"},
-        "Arara": {"disponivel": True, "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", "notas": "BALA DE MEL / MATE TOSTADO", "variedade": "ARARA", "regiao": "MOGIANA / SP", "cor_fundo": "#E6F7F0", "cor_texto": "#00875A"}
+        "Bala de Mel": {
+            "disponivel": True, 
+            "perfil": "CORPO ALTO / DOÇURA ALTA / FINALIZAÇÃO LONGA", 
+            "notas": "BALA DE MEL / MALTE / CHOCOLATE", 
+            "variedade": "MUNDO NOVO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#FFF0F5", 
+            "cor_texto": "#8B0086"
+        },
+        "Caramelo Selvagem": {
+            "disponivel": True, 
+            "perfil": "DOÇURA ALTA / ACIDEZ BAIXA / CORPO DENSO", 
+            "notas": "FLOR DE SAL / MALTE TOSTADO", 
+            "variedade": "BOURBON AMARELO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#FFFEE0", 
+            "cor_texto": "#8B7300"
+        },
+        "Lote 86": {
+            "disponivel": True, 
+            "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ BAIXA", 
+            "notas": "CREME DE AVELÃ", 
+            "variedade": "CATUAÍ VERMELHO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#FFEBEB", 
+            "cor_texto": "#A80000"
+        },
+        "Salada": {
+            "disponivel": True, 
+            "perfil": "CORPO SEDOSO / DOÇURA ALTA / ACIDEZ PRESENTE", 
+            "notas": "BAUNILHA / SALADA DE FRUTAS / FAVO DE MEL", 
+            "variedade": "MUNDO NOVO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#F5F5DC", 
+            "cor_texto": "#5C5C40"
+        },
+        "BS Honey": {
+            "disponivel": True, 
+            "perfil": "CORPO ALTO / DOÇURA ALTA / ACIDEZ BRILHANTE E CÍTRICA / LICOROSO", 
+            "notas": "RAPADURA / LARANJA / CHOCOLATE", 
+            "variedade": "CATUCAÍ AMARELO", 
+            "regiao": "MATAS / MG", 
+            "cor_fundo": "#F4E7E7", 
+            "cor_texto": "#800020"
+        },
+        "Caparaó": {
+            "disponivel": True, 
+            "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", 
+            "notas": "CASTANHA DE CAJU / CHOCOLATE", 
+            "variedade": "CATUCAÍ VERMELHO", 
+            "regiao": "CAPARAÓ / MG", 
+            "cor_fundo": "#FFECF5", 
+            "cor_texto": "#D10074"
+        },
+        "BS Natural": {
+            "disponivel": True, 
+            "perfil": "CORPO AMANTEIGADO / DOÇURA ALTA / ACIDEZ BAIXA", 
+            "notas": "CASTANHA DE CAJU / CHOCOLATE", 
+            "variedade": "BOURBON AMARELO", 
+            "regiao": "CAPARAÓ / MG", 
+            "cor_fundo": "#FFECF5", 
+            "cor_texto": "#D10074"
+        },
+        "Lote 87": {
+            "disponivel": True, 
+            "perfil": "CORPO AVELUDADO / DOÇURA ALTA / ACIDEZ LÁTICA", 
+            "notas": "BAUNILHA / NOZES / LARANJA", 
+            "variedade": "CATUAÍ VERMELHO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#FDF9E2", 
+            "cor_texto": "#A68000"
+        },
+        "Santa Rita": {
+            "disponivel": True, 
+            "perfil": "ENCORPADO / DOÇURA ALTA / ACIDEZ LÁTICA", 
+            "notas": "PAVÊ DE AMEIXA", 
+            "variedade": "CATUCAÍ AMARELO", 
+            "regiao": "SUL / MG", 
+            "cor_fundo": "#E0FFFF", 
+            "cor_texto": "#008B8B"
+        },
+        "Arara": {
+            "disponivel": True, 
+            "perfil": "CORPO LICOROSO / DOÇURA ALTA / ACIDEZ PRESENTE", 
+            "notas": "BALA DE MEL / MATE TOSTADO", 
+            "variedade": "ARARA", 
+            "regiao": "MOGIANA / SP", 
+            "cor_fundo": "#E6F7F0", 
+            "cor_texto": "#00875A"
+        }
     }
-
 
 if "historico_pedidos" not in st.session_state:
     st.session_state.historico_pedidos = []
@@ -31,7 +110,7 @@ if "carrinho" not in st.session_state:
 
 # 3. BARRA LATERAL (ACESSO DO ADMINISTRADOR)
 st.sidebar.title("🔐 Área Restrita")
-senha_digitada = st.sidebar.text_input("Senha do Administrador:", type="password")
+senha_digitada = st.sidebar.text_input("Senha do Administrador:", type="password", key="senha_admin_input")
 
 is_admin = (senha_digitada == SENHA_ADMIN)
 
@@ -43,9 +122,7 @@ if is_admin:
     
     st.subheader("📋 Controle de Disponibilidade do Cardápio")
     for sabor, dados in st.session_state.cardapio.items():
-        # Captura a mudança do toggle
         status_novo = st.toggle(f"Disponível: {sabor}", value=dados["disponivel"], key=f"toggle_{sabor}")
-        # Se mudou o status na tela, atualiza o banco e força o reload
         if status_novo != dados["disponivel"]:
             st.session_state.cardapio[sabor]["disponivel"] = status_novo
             st.rerun()
@@ -65,6 +142,7 @@ if is_admin:
                     st.write(f"• {item['cafe']} ({item['moagem']}) — {item['peso']}g")
                     
     if st.sidebar.button("Sair do Modo Admin"):
+        st.session_state.senha_admin_input = ""
         st.rerun()
 
 # --- VISÃO DO CLIENTE ---
@@ -131,15 +209,29 @@ else:
         telefone_raw = st.text_input("Seu WhatsApp:", placeholder="(XX) 9XXXX-XXXX", key="tel_input")
         numeros_tel = "".join(re.findall(r"\d", telefone_raw))[:11]
 
-        telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:7]}-{numeros_tel[7:]}" if len(numeros_tel) == 11 else telefone_raw
+        # Tratamento da máscara visual
+        if len(numeros_tel) > 0:
+            if len(numeros_tel) <= 2:
+                telefone_mascarado = f"({numeros_tel}"
+            elif len(numeros_tel) <= 7:
+                telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:]}"
+            else:
+                telefone_mascarado = f"({numeros_tel[:2]}) {numeros_tel[2:7]}-{numeros_tel[7:]}"
+        else:
+            telefone_mascarado = telefone_raw
+
+        if nome_raw and nome_raw != nome_valido:
+            st.caption(f"📝 Nome ajustado automaticamente: **{nome_valido}**")
+        if telefone_raw and telefone_raw != telefone_mascarado:
+            st.caption(f"📱 Formato da máscara aplicado: **{telefone_mascarado}**")
 
         if st.button("🔥 Finalizar e Enviar Pedido", use_container_width=True, type="primary"):
             if not st.session_state.carrinho:
                 st.error("⚠️ Seu carrinho está vazio!")
             elif len(nome_valido.strip()) == 0:
-                st.warning("⚠️ Insira um nome válido.")
+                st.warning("⚠️ Insira um nome válido (apenas letras).")
             elif len(numeros_tel) != 11:
-                st.warning("⚠️ Formato de telefone incorreto.")
+                st.warning("⚠️ Formato de telefone incorreto. Use (XX) 9XXXX-XXXX.")
             else:
                 novo_pedido = {
                     "nome": nome_valido,
