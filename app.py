@@ -58,7 +58,7 @@ if is_admin:
     
     st.subheader("📦 Histórico de Pedidos Gravados")
     # Puxa os dados em tempo real do Supabase
-    resposta = supabase.table("pedidos").select("*").order("created_at", descending=True).execute()
+    resposta = supabase.table("pedidos").select("*").order("created_at", desc=True).execute()
     pedidos_banco = resposta.data
 
     if not pedidos_banco:
